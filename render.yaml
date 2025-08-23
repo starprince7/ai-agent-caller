@@ -25,11 +25,11 @@ services:
   healthCheckPath: # Leave empty for non-HTTP services
   
   # Scaling configuration optimized for voice agents
-  scaling:
-    minInstances: 1
-    maxInstances: 4
-    targetCPUPercent: 70    # Higher threshold for voice processing
-    targetMemoryPercent: 75  # Voice agents can be memory intensive
+  # scaling:
+  #   minInstances: 1
+  #   maxInstances: 4
+  #   targetCPUPercent: 70    # Higher threshold for voice processing
+  #   targetMemoryPercent: 75  # Voice agents can be memory intensive
 
   # Docker build configuration
   dockerfilePath: ./Dockerfile

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc",
+    "start": "node ./dist/agent.js",
     "lint": "eslint -f unix \"**/*.ts\""
   },
   "packageManager": "pnpm@9.15.9",
