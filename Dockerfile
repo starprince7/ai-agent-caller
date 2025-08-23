@@ -56,7 +56,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD node -e "process.exit(0)" || exit 1
 
 # Expose port (uncomment if needed)
-# EXPOSE 8080
+EXPOSE 8081
 
 # Start the agent
-CMD ["node", "./dist/agent.js"]
+CMD ["node", "./dist/agent.js", "start"]
