@@ -1,0 +1,39 @@
+services:
+- type: pserv
+  repo: https://github.com/starprince7/ai-agent-caller
+  
+  # Set root directory if your project is in a subdirectory
+  # Leave empty if Dockerfile is in repo root
+  rootDir: 
+
+  name: ai-agent-caller
+  runtime: image
+
+  # Starter plan for Docker deployments
+  plan: starter
+
+  # Environment variables from your dashboard group
+  envVars:
+  - fromGroup: ai-agent-caller-env
+  
+  region: virginia
+
+  # Extended shutdown delay for LiveKit agents to handle ongoing calls gracefully
+  maxShutdownDelaySeconds: 300
+
+  # Health check configuration (matches Dockerfile HEALTHCHECK)
+  healthCheckPath: # Leave empty for non-HTTP services
+  
+  # Scaling configuration optimized for voice agents
+  scaling:
+    minInstances: 1
+    maxInstances: 4
+    targetCPUPercent: 70    # Higher threshold for voice processing
+    targetMemoryPercent: 75  # Voice agents can be memory intensive
+
+  # Docker build configuration
+  dockerCommand: # Will use CMD from Dockerfile
+  dockerContext: ./
+  dockerfilePath: ./Dockerfile
+
+version: "1"
