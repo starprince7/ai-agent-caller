@@ -12,15 +12,15 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y \
 WORKDIR /app
 
 # Enable yarn (via Corepack) and pin version to match package.json "packageManager"
-RUN corepack enable
+RUN corepack enable && corepack prepare yarn@3.6.4 --activate
 
 # ---- Dependencies Stage ----
 FROM base AS deps
 COPY package.json yarn.lock ./
-# Try install with frozen lockfile, if fail show yarn-error.log for easier debugging
+# Install all dependencies (including dev dependencies) using Yarn 3.x syntax
 RUN --mount=type=cache,id=yarn,target=/usr/local/share/.cache/yarn \
-    yarn install --frozen-lockfile --production=false || \
-    (cat /app/yarn-error.log && exit 1)
+    yarn install --immutable || \
+    (cat /app/yarn-error.log 2>/dev/null && exit 1)
 
 # ---- Build Stage ----
 FROM base AS build
@@ -30,8 +30,8 @@ COPY --from=deps /app/node_modules ./node_modules
 # Build the TypeScript project
 RUN yarn build
 
-# Prune dev dependencies for production
-RUN yarn install --frozen-lockfile --production=true --ignore-scripts && yarn cache clean
+# Install only production dependencies using Yarn 3.x syntax
+RUN yarn workspaces focus --production && yarn cache clean
 
 # ---- Production Stage ----
 FROM base AS production
@@ -43,11 +43,11 @@ RUN groupadd --gid 1001 --system nodejs && \
 # Copy package files
 COPY package.json yarn.lock ./
 
-# Install only production dependencies
+# Install only production dependencies using Yarn 3.x syntax
 RUN --mount=type=cache,id=yarn,target=/usr/local/share/.cache/yarn \
-    yarn install --frozen-lockfile --production=true --ignore-scripts
+    yarn workspaces focus --production
 
-# Copy built application and cleaned node_modules
+# Copy built application and production node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 
