@@ -11,8 +11,8 @@ RUN apt-get update -qq && apt-get install --no-install-recommends -y \
 
 WORKDIR /app
 
-# Enable yarn (via Corepack) and pin version to match package.json "packageManager"
-RUN corepack enable && corepack prepare yarn@3.6.4 --activate
+# Enable yarn (via Corepack) and use latest version
+RUN corepack enable && corepack prepare yarn@stable --activate
 
 # ---- Dependencies Stage ----
 FROM base AS deps
@@ -30,7 +30,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # Build the TypeScript project
 RUN yarn build
 
-# Install only production dependencies using Yarn 3.x syntax
+# Install only production dependencies using latest Yarn
 RUN yarn workspaces focus --production && yarn cache clean
 
 # ---- Production Stage ----
@@ -43,7 +43,7 @@ RUN groupadd --gid 1001 --system nodejs && \
 # Copy package files
 COPY package.json yarn.lock ./
 
-# Install only production dependencies using Yarn 3.x syntax
+# Install only production dependencies using latest Yarn
 RUN --mount=type=cache,id=yarn,target=/usr/local/share/.cache/yarn \
     yarn workspaces focus --production
 
