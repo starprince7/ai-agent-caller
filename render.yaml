@@ -7,7 +7,7 @@ services:
   rootDir: 
 
   name: ai-agent-caller
-  runtime: image
+  runtime: docker
 
   # Starter plan for Docker deployments
   plan: starter
@@ -32,8 +32,6 @@ services:
     targetMemoryPercent: 75  # Voice agents can be memory intensive
 
   # Docker build configuration
-  dockerCommand: # Will use CMD from Dockerfile
-  dockerContext: ./
   dockerfilePath: ./Dockerfile
 
 version: "1"
