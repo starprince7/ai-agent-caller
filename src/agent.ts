@@ -32,12 +32,14 @@ export default defineAgent({
   entry: async (ctx: JobContext) => {
     // Get the pre-loaded VAD model from prewarm
     const vad = ctx.proc.userData.vad! as silero.VAD;
+    const agentName = ctx.agent?.name;
+    console.log('Agent Name:', agentName);
 
     // Configure the AI agent's personality and behavior
     const initialContext = new llm.ChatContext().append({
       role: llm.ChatRole.SYSTEM,
       text:
-        'You are a professional AI voice assistant. Your interface with users will be voice only. ' +
+        `You are a professional AI voice assistant. Your name is Jane. Your second name is ${agentName}. Your interface with users will be voice only. ` +
         'Keep responses concise and conversational. Avoid using special characters, abbreviations, ' +
         'or formatting that would be hard to pronounce. Speak naturally as if having a phone conversation.',
     });
