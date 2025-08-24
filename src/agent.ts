@@ -102,7 +102,7 @@ export default defineAgent({
       }),
       new openai.TTS({ // Text-to-Speech using OpenAI TTS
         model: 'tts-1', // or 'tts-1-hd' for higher quality
-        voice: 'alloy', // Options: alloy, echo, fable, onyx, nova, shimmer
+        voice: 'sage', // Options: alloy, echo, fable, onyx, nova, shimmer, sage
       }),
       {
         chatCtx: initialContext,
@@ -114,11 +114,11 @@ export default defineAgent({
     agent.start(ctx.room, participant);
 
     // Greet the participant
-    await agent.say('Hello! This is your AI assistant. How can I help you today?', true);
+    await agent.say('Hello! This is Jane, your AI assistant. How can I help you today?', true);
 
     console.log(`Voice assistant started for participant: ${participant.identity}`);
   },
 });
 
 // Start the worker process
-cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url) }));
+cli.runApp(new WorkerOptions({ agent: fileURLToPath(import.meta.url), agentName: 'jane' }));
