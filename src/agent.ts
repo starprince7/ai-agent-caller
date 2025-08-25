@@ -99,7 +99,7 @@ export default defineAgent({
         model: 'whisper-1',
       }),
       new openai.LLM({ // Language Model using OpenAI GPT
-        model: 'gpt-4.1-2025-04-14', // Use gpt-4, gpt-4o, or gpt-3.5-turbo as needed
+        model: 'gpt-4o', // Use gpt-4, gpt-4o, or gpt-3.5-turbo as needed
         temperature: 0.7,
       }),
       new openai.TTS({ // Text-to-Speech using OpenAI TTS
