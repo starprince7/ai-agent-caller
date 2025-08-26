@@ -15,7 +15,8 @@ import * as silero from '@livekit/agents-plugin-silero';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { z } from 'zod';
+import { getWeather } from './tools/getWeather';
+import { getTime } from './tools/getTime';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
@@ -55,41 +56,9 @@ export default defineAgent({
 
     // Define functions/tools the AI can use during conversations
     const fncCtx: llm.FunctionContext = {
-      get_weather: {
-        description: 'Get current weather information for any location',
-        parameters: z.object({
-          location: z.string().describe('The city, state, or country to get weather for'),
-        }),
-        execute: async ({ location }) => {
-          console.log(`Fetching weather for: ${location}`);
-          try {
-            const response = await fetch(`https://wttr.in/${location}?format=%C+%t+%h+%w`);
-            if (!response.ok) {
-              throw new Error(`Weather API returned status: ${response.status}`);
-            }
-            const weather = await response.text().then(text => text.trim());
-            return `Current weather in ${location}: ${weather}`;
-          } catch (error) {
-            console.error(`Failed to fetch weather for ${location}:`, error);
-            return `I'm sorry, I couldn't get the weather information for ${location} right now. Please try again later.`;
-          }
-        },
-      },
-
+      get_weather: getWeather,
       // Add more functions here as needed
-      get_time: {
-        description: 'Get the current time',
-        parameters: z.object({}),
-        execute: async () => {
-          const now = new Date();
-          const timeString = now.toLocaleTimeString('en-US', {
-            hour: '2-digit',
-            minute: '2-digit',
-            timeZoneName: 'short'
-          });
-          return `The current time is ${timeString}`;
-        },
-      },
+      get_time: getTime,
     };
 
     // Create the voice pipeline agent using ONLY OpenAI models
@@ -103,7 +72,7 @@ export default defineAgent({
         temperature: 0.7,
       }),
       new openai.TTS({ // Text-to-Speech using OpenAI TTS
-        model: 'tts-1', // or 'tts-1-hd' for higher quality
+        model: 'tts-1-hd', // 'tts-1' or 'tts-1-hd' for higher quality
         voice: 'sage', // Options: alloy, echo, fable, onyx, nova, shimmer, sage
       }),
       {
