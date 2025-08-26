@@ -15,8 +15,8 @@ import * as silero from '@livekit/agents-plugin-silero';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getWeather } from './tools/getWeather';
-import { getTime } from './tools/getTime';
+import { getWeather } from './tools/getWeather.js';
+import { getTime } from './tools/getTime.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
