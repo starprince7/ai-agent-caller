@@ -41,12 +41,12 @@ export const get_primary_calendar = {
 export const set_working_hours = {
   description: 'Set preferred working hours for the configured demo user',
   parameters: z.object({
-    days: z.array(z.union([z.number().min(0).max(6), z.string()])).describe('Days of week; 0..6 (Sun..Sat) or day names'),
+    days: z.array(z.string()).describe('Days of week as strings: "0".."6" (Sun..Sat) or day names like Monday'),
     start: z.string().describe('Start time in HH:mm, e.g., 09:00'),
     end: z.string().describe('End time in HH:mm, e.g., 17:30'),
     timeZone: z.string().optional().describe('IANA time zone, e.g., Europe/London'),
   }),
-  execute: async ({ days, start, end, timeZone }: { days: Array<number | string>; start: string; end: string; timeZone?: string }) => {
+  execute: async ({ days, start, end, timeZone }: { days: string[]; start: string; end: string; timeZone?: string }) => {
     await setWorkingHours(DEMO_USER_ID, { days, start, end, timeZone });
     return `Saved working hours: days=${JSON.stringify(days)} ${start}-${end}${timeZone ? ` ${timeZone}` : ''}`;
   },
