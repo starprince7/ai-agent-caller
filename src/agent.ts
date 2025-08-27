@@ -56,11 +56,11 @@ export default defineAgent({
     // Define functions/tools the AI can use during conversations
     const fncCtx: llm.FunctionContext = {
       // get_weather: getWeather,
-      // // Add more functions here as needed
       // get_time: getTime,
-      get_calendars,
-      get_primary_calendar,
-      set_working_hours,
+
+      // get_calendars,
+      // get_primary_calendar,
+      // set_working_hours,
       create_event,
       cancel_event,
       reschedule_event,
@@ -74,7 +74,7 @@ export default defineAgent({
         model: 'whisper-1',
       }),
       new openai.LLM({ // Language Model using OpenAI GPT
-        model: 'gpt-4o', // Use gpt-4, gpt-4o, or gpt-3.5-turbo as needed
+        model: 'gpt-4o-mini', // Use gpt-4, gpt-4o, or gpt-3.5-turbo as needed
         temperature: 0.7,
       }),
       new openai.TTS({ // Text-to-Speech using OpenAI TTS
