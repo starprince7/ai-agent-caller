@@ -15,8 +15,9 @@ import * as silero from '@livekit/agents-plugin-silero';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getWeather } from './tools/getWeather.js';
-import { getTime } from './tools/getTime.js';
+import { getWeather } from './tools/getWeather.js.js';
+import { getTime } from './tools/getTime.js.js';
+import { get_calendars, get_primary_calendar, set_working_hours, create_event, cancel_event, reschedule_event, find_free_slots } from './tools/calendarAgentTools.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
@@ -33,14 +34,12 @@ export default defineAgent({
   entry: async (ctx: JobContext) => {
     // Get the pre-loaded VAD model from prewarm
     const vad = ctx.proc.userData.vad! as silero.VAD;
-    const agentName = ctx.agent?.name;
-    console.log('Agent Name:', agentName);
 
     // Configure the AI agent's personality and behavior
     const initialContext = new llm.ChatContext().append({
       role: llm.ChatRole.SYSTEM,
       text:
-        `You are a professional AI voice assistant. Your name is Jane. Your second name is ${agentName}. Your interface with users will be voice only. ` +
+        `You are a professional AI voice assistant. Your name is Jane. Your interface with users will be voice only. ` +
         'Keep responses concise and conversational. Avoid using special characters, abbreviations, ' +
         'or formatting that would be hard to pronounce. Speak naturally as if having a phone conversation.',
     });
@@ -56,9 +55,16 @@ export default defineAgent({
 
     // Define functions/tools the AI can use during conversations
     const fncCtx: llm.FunctionContext = {
-      get_weather: getWeather,
-      // Add more functions here as needed
-      get_time: getTime,
+      // get_weather: getWeather,
+      // // Add more functions here as needed
+      // get_time: getTime,
+      get_calendars,
+      get_primary_calendar,
+      set_working_hours,
+      create_event,
+      cancel_event,
+      reschedule_event,
+      find_free_slots,
     };
 
     // Create the voice pipeline agent using ONLY OpenAI models

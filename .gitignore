@@ -181,7 +181,10 @@ dist
 temp
 
 # typedoc
-docs
+# If you generate typedoc into docs/, adjust as needed. We keep docs/ tracked for project documentation.
 
 # direnv
 .direnv
+
+# Local data (encrypted tokens & preferences)
+data/
