@@ -15,8 +15,8 @@ import * as silero from '@livekit/agents-plugin-silero';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getWeather } from './tools/getWeather.js.js';
-import { getTime } from './tools/getTime.js.js';
+import { getWeather } from './tools/getWeather.js';
+import { getTime } from './tools/getTime.js';
 import { get_calendars, get_primary_calendar, set_working_hours, create_event, cancel_event, reschedule_event, find_free_slots } from './tools/calendarAgentTools.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
