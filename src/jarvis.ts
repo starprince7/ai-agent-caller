@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 LiveKit, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-import { type JobContext, WorkerOptions, cli, defineAgent, voice } from '@livekit/agents';
+import { type JobContext, WorkerOptions, cli, defineAgent, voice, llm } from '@livekit/agents';
 import * as openai from '@livekit/agents-plugin-openai';
 import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import { fileURLToPath } from 'node:url';
@@ -35,17 +35,43 @@ export default defineAgent({
     const agent = new voice.Agent({
       instructions: 'You are Jarvis, a helpful, concise assistant.',
       allowInterruptions: true,
-      tools: (
-        [
-          get_calendars,
-          get_primary_calendar,
-          set_working_hours,
-          create_event,
-          cancel_event,
-          reschedule_event,
-          find_free_slots,
-        ] as any
-      ),
+      tools: {
+        get_calendars: llm.tool({
+          description: get_calendars.description,
+          parameters: get_calendars.parameters,
+          execute: get_calendars.execute,
+        }),
+        get_primary_calendar: llm.tool({
+          description: get_primary_calendar.description,
+          parameters: get_primary_calendar.parameters,
+          execute: get_primary_calendar.execute,
+        }),
+        set_working_hours: llm.tool({
+          description: set_working_hours.description,
+          parameters: set_working_hours.parameters,
+          execute: set_working_hours.execute,
+        }),
+        create_event: llm.tool({
+          description: create_event.description,
+          parameters: create_event.parameters,
+          execute: create_event.execute,
+        }),
+        cancel_event: llm.tool({
+          description: cancel_event.description,
+          parameters: cancel_event.parameters,
+          execute: cancel_event.execute,
+        }),
+        reschedule_event: llm.tool({
+          description: reschedule_event.description,
+          parameters: reschedule_event.parameters,
+          execute: reschedule_event.execute,
+        }),
+        find_free_slots: llm.tool({
+          description: find_free_slots.description,
+          parameters: find_free_slots.parameters,
+          execute: find_free_slots.execute,
+        }),
+      },
     });
 
     // Use OpenAI Realtime API only for Jarvis

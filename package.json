@@ -6,9 +6,11 @@
   "scripts": {
     "build": "tsc",
     "dev": "node ./dist/agent.js dev",
+    "dev:agent:start": "pnpm pkg set \"scripts.dev=tsx agent.ts dev\"",
     "start": "node ./dist/agent.js",
     "lint": "eslint -f unix \"**/*.ts\"",
-    "auth:google": "pnpm build && node ./dist/scripts/googleAuth.js"
+    "auth:google": "pnpm build && node ./dist/scripts/googleAuth.js",
+    "download-files": "tsc && node ./dist/agent.js download-files"
   },
   "packageManager": "pnpm@9.15.9",
   "devDependencies": {
@@ -30,7 +32,7 @@
     "@livekit/agents-plugin-elevenlabs": "^0.6.3",
     "@livekit/agents-plugin-livekit": "^1.0.1",
     "@livekit/agents-plugin-openai": "^1.0.1",
-    "@livekit/agents-plugin-silero": "^0.5.9",
+    "@livekit/agents-plugin-silero": "^1.0.1",
     "@livekit/noise-cancellation-node": "^0.1.9",
     "@livekit/rtc-node": "^0.13.18",
     "dotenv": "^16.6.1",

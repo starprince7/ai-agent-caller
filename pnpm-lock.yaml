@@ -24,8 +24,8 @@ importers:
         specifier: ^1.0.1
         version: 1.0.1(@livekit/agents@1.0.1(@livekit/rtc-node@0.13.18))(@livekit/rtc-node@0.13.18)(zod@4.1.4)
       '@livekit/agents-plugin-silero':
-        specifier: ^0.5.9
-        version: 0.5.9(@livekit/agents@1.0.1(@livekit/rtc-node@0.13.18))(@livekit/rtc-node@0.13.18)
+        specifier: ^1.0.1
+        version: 1.0.1(@livekit/agents@1.0.1(@livekit/rtc-node@0.13.18))(@livekit/rtc-node@0.13.18)
       '@livekit/noise-cancellation-node':
         specifier: ^0.1.9
         version: 0.1.9
@@ -502,11 +502,11 @@ packages:
       '@livekit/agents': 1.0.1
       '@livekit/rtc-node': ^0.13.12
 
-  '@livekit/agents-plugin-silero@0.5.9':
-    resolution: {integrity: sha512-QopjcO4Xw6/onZipC9sgNHEu/cD2XqHhKMMhwbn0oAOf4jc0/4mhWK6OZUn19fYrC4jfBfMtGpdgBX2sPNJryQ==}
+  '@livekit/agents-plugin-silero@1.0.1':
+    resolution: {integrity: sha512-ybBBcDl320OABsl8j92B5oA3t0fDhkM5KVcTBiEyoBAIAXmSYEC2wC9cp2Jn0Bpd32ZtZ83jiC3HmaiSwZvyTw==}
     peerDependencies:
-      '@livekit/agents': ^0.7.9x
-      '@livekit/rtc-node': ^0.13.11
+      '@livekit/agents': 1.0.1
+      '@livekit/rtc-node': ^0.13.12
 
   '@livekit/agents@1.0.1':
     resolution: {integrity: sha512-Nt2PXk2EARCnbkxMi7Bwl+IabbSmBFN3v5a70mpKUx5bIAEQAgctHUZZFp4jQjr3eOgqRSrmgoV0rJ0Q25Ld7w==}
@@ -1653,18 +1653,11 @@ packages:
   onnxruntime-common@1.21.0:
     resolution: {integrity: sha512-Q632iLLrtCAVOTO65dh2+mNbQir/QNTVBG3h/QdZBpns7mZ0RYbLRBgGABPbpU9351AgYy7SJf1WaeVwMrBFPQ==}
 
-  onnxruntime-common@1.21.1:
-    resolution: {integrity: sha512-E0q8+fMyJ+F8dvlwVsXcujrOc96lkPIDAZh3p6pjrZS4bzjowIcUMv48W5zOcFLtlWyycUlRPJWUUK2+3IL1eA==}
-
   onnxruntime-common@1.22.0-dev.20250409-89f8206ba4:
     resolution: {integrity: sha512-vDJMkfCfb0b1A836rgHj+ORuZf4B4+cc2bASQtpeoJLueuFc5DuYwjIZUBrSvx/fO5IrLjLz+oTrB3pcGlhovQ==}
 
   onnxruntime-node@1.21.0:
     resolution: {integrity: sha512-NeaCX6WW2L8cRCSqy3bInlo5ojjQqu2fD3D+9W5qb5irwxhEyWKXeH2vZ8W9r6VxaMPUan+4/7NDwZMtouZxEw==}
-    os: [win32, darwin, linux]
-
-  onnxruntime-node@1.21.1:
-    resolution: {integrity: sha512-YThL/YYeGAeytecOvRcTKUORTIE2f8/iSo/JZgHFawWrV4zOY7fWLEaNuscgjmY5C5/VE/Wr7tm+ucSsc/AysQ==}
     os: [win32, darwin, linux]
 
   onnxruntime-web@1.22.0-dev.20250409-89f8206ba4:
@@ -2504,11 +2497,11 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@livekit/agents-plugin-silero@0.5.9(@livekit/agents@1.0.1(@livekit/rtc-node@0.13.18))(@livekit/rtc-node@0.13.18)':
+  '@livekit/agents-plugin-silero@1.0.1(@livekit/agents@1.0.1(@livekit/rtc-node@0.13.18))(@livekit/rtc-node@0.13.18)':
     dependencies:
       '@livekit/agents': 1.0.1(@livekit/rtc-node@0.13.18)
       '@livekit/rtc-node': 0.13.18
-      onnxruntime-node: 1.21.1
+      onnxruntime-node: 1.21.0
       ws: 8.18.3
     transitivePeerDependencies:
       - bufferutil
@@ -3836,20 +3829,12 @@ snapshots:
 
   onnxruntime-common@1.21.0: {}
 
-  onnxruntime-common@1.21.1: {}
-
   onnxruntime-common@1.22.0-dev.20250409-89f8206ba4: {}
 
   onnxruntime-node@1.21.0:
     dependencies:
       global-agent: 3.0.0
       onnxruntime-common: 1.21.0
-      tar: 7.4.3
-
-  onnxruntime-node@1.21.1:
-    dependencies:
-      global-agent: 3.0.0
-      onnxruntime-common: 1.21.1
       tar: 7.4.3
 
   onnxruntime-web@1.22.0-dev.20250409-89f8206ba4:

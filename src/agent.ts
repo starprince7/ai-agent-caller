@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2024 LiveKit, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-import { type JobContext, type JobProcess, WorkerOptions, cli, defineAgent, voice } from '@livekit/agents';
+import { type JobContext, type JobProcess, WorkerOptions, cli, defineAgent, voice, llm } from '@livekit/agents';
 import * as deepgram from '@livekit/agents-plugin-deepgram';
 import * as elevenlabs from '@livekit/agents-plugin-elevenlabs';
 import * as livekit from '@livekit/agents-plugin-livekit';
@@ -50,17 +50,43 @@ export default defineAgent({
       instructions:
         'You are a professional AI voice assistant named Jane. Keep responses concise, conversational, and natural for voice-only interactions.',
       allowInterruptions: true,
-      tools: (
-        [
-          get_calendars,
-          get_primary_calendar,
-          set_working_hours,
-          create_event,
-          cancel_event,
-          reschedule_event,
-          find_free_slots,
-        ] as any
-      ),
+      tools: {
+        get_calendars: llm.tool({
+          description: get_calendars.description,
+          parameters: get_calendars.parameters,
+          execute: get_calendars.execute,
+        }),
+        get_primary_calendar: llm.tool({
+          description: get_primary_calendar.description,
+          parameters: get_primary_calendar.parameters,
+          execute: get_primary_calendar.execute,
+        }),
+        set_working_hours: llm.tool({
+          description: set_working_hours.description,
+          parameters: set_working_hours.parameters,
+          execute: set_working_hours.execute,
+        }),
+        create_event: llm.tool({
+          description: create_event.description,
+          parameters: create_event.parameters,
+          execute: create_event.execute,
+        }),
+        cancel_event: llm.tool({
+          description: cancel_event.description,
+          parameters: cancel_event.parameters,
+          execute: cancel_event.execute,
+        }),
+        reschedule_event: llm.tool({
+          description: reschedule_event.description,
+          parameters: reschedule_event.parameters,
+          execute: reschedule_event.execute,
+        }),
+        find_free_slots: llm.tool({
+          description: find_free_slots.description,
+          parameters: find_free_slots.parameters,
+          execute: find_free_slots.execute,
+        }),
+      },
     });
 
     // Build a non-realtime session: Deepgram STT, ElevenLabs TTS, OpenAI LLM
@@ -69,7 +95,7 @@ export default defineAgent({
       stt: new openai.STT(),
       tts: new openai.TTS(),
       llm: new openai.LLM({ model: 'gpt-4o-mini', temperature: 0.7 }),
-      turnDetection: new livekit.turnDetector.MultilingualModel(),
+      // turnDetection: new livekit.turnDetector.MultilingualModel(),
     });
 
     await session.start({
