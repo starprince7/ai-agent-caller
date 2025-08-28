@@ -12,6 +12,7 @@ import {
 const DEMO_USER_ID = process.env.DEMO_USER_ID ?? 'demo-user';
 
 export const get_calendars = {
+  type: 'function',
   description: 'List all calendars for the configured demo user',
   parameters: z.object({}),
   execute: async () => {

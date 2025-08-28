@@ -1,23 +1,26 @@
 // SPDX-FileCopyrightText: 2024 LiveKit, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-import {
-  type JobContext,
-  type JobProcess,
-  WorkerOptions,
-  cli,
-  defineAgent,
-  llm,
-  pipeline,
-} from '@livekit/agents';
+import { type JobContext, type JobProcess, WorkerOptions, cli, defineAgent, voice } from '@livekit/agents';
+import * as deepgram from '@livekit/agents-plugin-deepgram';
+import * as elevenlabs from '@livekit/agents-plugin-elevenlabs';
+import * as livekit from '@livekit/agents-plugin-livekit';
 import * as openai from '@livekit/agents-plugin-openai';
 import * as silero from '@livekit/agents-plugin-silero';
+import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getWeather } from './tools/getWeather.js';
-import { getTime } from './tools/getTime.js';
-import { get_calendars, get_primary_calendar, set_working_hours, create_event, cancel_event, reschedule_event, find_free_slots } from './tools/calendarAgentTools.js';
+import {
+  get_calendars,
+  get_primary_calendar,
+  set_working_hours,
+  create_event,
+  cancel_event,
+  reschedule_event,
+  find_free_slots,
+} from './tools/calendarAgentTools.js';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
@@ -32,68 +35,56 @@ export default defineAgent({
   },
 
   entry: async (ctx: JobContext) => {
-    // Get the pre-loaded VAD model from prewarm
-    const vad = ctx.proc.userData.vad! as silero.VAD;
-
-    // Configure the AI agent's personality and behavior
-    const initialContext = new llm.ChatContext().append({
-      role: llm.ChatRole.SYSTEM,
-      text:
-        `You are a professional AI voice assistant. Your name is Jane. Your interface with users will be voice only. ` +
-        'Keep responses concise and conversational. Avoid using special characters, abbreviations, ' +
-        'or formatting that would be hard to pronounce. Speak naturally as if having a phone conversation.',
-    });
-
-    // Connect to the LiveKit room
+    // Connect and log room/participant
     await ctx.connect();
     console.log(`Agent connected to room: ${ctx.room.name}`);
-
-    // Wait for a participant to join (works for both inbound and outbound calls)
     console.log('Waiting for participant to join...');
     const participant = await ctx.waitForParticipant();
     console.log(`Participant joined: ${participant.identity}`);
 
-    // Define functions/tools the AI can use during conversations
-    const fncCtx: llm.FunctionContext = {
-      // get_weather: getWeather,
-      // get_time: getTime,
+    // Get the pre-loaded VAD model from prewarm
+    const vad = ctx.proc.userData.vad! as silero.VAD;
 
-      // get_calendars,
-      // get_primary_calendar,
-      // set_working_hours,
-      create_event,
-      cancel_event,
-      reschedule_event,
-      find_free_slots,
-    };
+    // Define Jane's persona with tools
+    const agent = new voice.Agent({
+      instructions:
+        'You are a professional AI voice assistant named Jane. Keep responses concise, conversational, and natural for voice-only interactions.',
+      allowInterruptions: true,
+      tools: (
+        [
+          get_calendars,
+          get_primary_calendar,
+          set_working_hours,
+          create_event,
+          cancel_event,
+          reschedule_event,
+          find_free_slots,
+        ] as any
+      ),
+    });
 
-    // Create the voice pipeline agent using ONLY OpenAI models
-    const agent = new pipeline.VoicePipelineAgent(
-      vad, // Voice Activity Detection (when to listen vs speak)
-      new openai.STT({ // Speech-to-Text using OpenAI Whisper
-        model: 'whisper-1',
-      }),
-      new openai.LLM({ // Language Model using OpenAI GPT
-        model: 'gpt-4o-mini', // Use gpt-4, gpt-4o, or gpt-3.5-turbo as needed
-        temperature: 0.7,
-      }),
-      new openai.TTS({ // Text-to-Speech using OpenAI TTS
-        model: 'tts-1-hd', // 'tts-1' or 'tts-1-hd' for higher quality
-        voice: 'sage', // Options: alloy, echo, fable, onyx, nova, shimmer, sage
-      }),
-      {
-        chatCtx: initialContext,
-        fncCtx,
+    // Build a non-realtime session: Deepgram STT, ElevenLabs TTS, OpenAI LLM
+    const session = new voice.AgentSession({
+      vad,
+      stt: new openai.STT(),
+      tts: new openai.TTS(),
+      llm: new openai.LLM({ model: 'gpt-4o-mini', temperature: 0.7 }),
+      turnDetection: new livekit.turnDetector.MultilingualModel(),
+    });
+
+    await session.start({
+      room: ctx.room,
+      agent,
+      inputOptions: {
+        noiseCancellation: BackgroundVoiceCancellation(),
       },
-    );
-
-    // Start the agent with the participant
-    agent.start(ctx.room, participant);
+    });
 
     // Greet the participant
-    await agent.say('Hello! This is Jane, your AI assistant. How can I help you today?', true);
-
-    console.log(`Voice assistant started for participant: ${participant.identity}`);
+    const handle = session.generateReply({
+      instructions: 'Say "Hello! This is Jane, your AI assistant. How can I help you today?"',
+    });
+    await handle.waitForPlayout();
   },
 });
 
