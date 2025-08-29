@@ -35,12 +35,6 @@ export default defineAgent({
   },
 
   entry: async (ctx: JobContext) => {
-    // Connect and log room/participant
-    await ctx.connect();
-    console.log(`Agent connected to room: ${ctx.room.name}`);
-    console.log('Waiting for participant to join...');
-    const participant = await ctx.waitForParticipant();
-    console.log(`Participant joined: ${participant.identity}`);
 
     // Get the pre-loaded VAD model from prewarm
     const vad = ctx.proc.userData.vad! as silero.VAD;
@@ -108,9 +102,16 @@ export default defineAgent({
 
     // Greet the participant
     const handle = session.generateReply({
-      instructions: 'Say "Hello! This is Jane, your AI assistant. How can I help you today?"',
+      instructions: 'Introduce yourself as Jane, greet the user warmly and offer your assistance.',
     });
-    await handle.waitForPlayout();
+    // await handle.waitForPlayout();
+
+    // Connect and log room/participant
+    await ctx.connect();
+    console.log(`Agent connected to room: ${ctx.room.name}`);
+    console.log('Waiting for participant to join...');
+    const participant = await ctx.waitForParticipant();
+    console.log(`Participant joined: ${participant.identity}`);
   },
 });
 
