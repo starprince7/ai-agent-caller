@@ -48,6 +48,7 @@ export default defineAgent({
         month: "long",
         day: "numeric",
       });
+      console.log('Time log: Today is - : ', today);
       const promptInstruction = `You are a professional AI voice assistant named Jane. Keep responses concise, conversational, and natural for voice-only interactions. Today's date is ${today}.`;
 
       // Define Jane's persona with tools
@@ -98,7 +99,7 @@ export default defineAgent({
       const session = new voice.AgentSession({
         vad,
         stt: new openai.STT(),
-        tts: new openai.TTS(),
+        tts: new openai.TTS({ model: "gpt-4o-mini-tts", voice: "nova"}),
         llm: new openai.LLM({ model: 'gpt-4o-mini', temperature: 0.7 }),
         // turnDetection: new livekit.turnDetector.MultilingualModel(),
       });
