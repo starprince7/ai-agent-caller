@@ -1,9 +1,13 @@
 import fs from 'fs';
 import path from 'path';
 import { encrypt, decrypt } from '../utils/crypto.js';
+import { getDataDir, ensureDataFile } from '../utils/dataDir.js';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = getDataDir();
 const TOKENS_FILE = path.join(DATA_DIR, 'tokens.json');
+
+// Log the data directory location for debugging
+console.log(`Token store using data directory: ${DATA_DIR}`);
 
 interface TokenRecord {
   userId: string;
@@ -15,8 +19,7 @@ interface FileShape {
 }
 
 const ensureFile = () => {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(TOKENS_FILE)) fs.writeFileSync(TOKENS_FILE, JSON.stringify({ tokens: [] }, null, 2));
+  ensureDataFile(TOKENS_FILE, JSON.stringify({ tokens: [] }, null, 2));
 };
 
 const readAll = (): FileShape => {

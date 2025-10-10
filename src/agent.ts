@@ -1,14 +1,14 @@
 // SPDX-FileCopyrightText: 2024 LiveKit, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
-import { 
-  type JobContext, 
-  type JobProcess, 
-  WorkerOptions, 
-  cli, 
-  defineAgent, 
-  voice, 
-  llm 
+import {
+  type JobContext,
+  type JobProcess,
+  WorkerOptions,
+  cli,
+  defineAgent,
+  llm,
+  voice,
 } from '@livekit/agents';
 import * as deepgram from '@livekit/agents-plugin-deepgram';
 import * as elevenlabs from '@livekit/agents-plugin-elevenlabs';
@@ -19,18 +19,19 @@ import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import {
-  get_calendars,
-  get_primary_calendar,
-  set_working_hours,
-  create_event,
-  cancel_event,
-  reschedule_event,
-  find_free_slots,
-} from './tools/calendarAgentTools.js';
-import { accept_dental_booking } from './tools/dentalTool.js';
+import { PerformanceTracker, ResourceManager, SessionManager } from './core/managers/index.js';
 import { hiltonDentalPrompt } from './system-prompts/hilton-dental.js';
 import { dermaVisualsSpaPrompt } from './system-prompts/spa.js';
+import {
+  cancel_event,
+  create_event,
+  find_free_slots,
+  get_calendars,
+  get_primary_calendar,
+  reschedule_event,
+  set_working_hours,
+} from './tools/calendarAgentTools.js';
+import { accept_dental_booking, accept_spa_booking } from './tools/bookingTools.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
@@ -50,34 +51,15 @@ const SESSION_CONFIG = {
 const logMemoryUsage = (context: string = '') => {
   const usage = process.memoryUsage();
   const formatMB = (bytes: number) => Math.round(bytes / 1024 / 1024) + 'MB';
-  
+
   console.log(`Memory usage ${context}:`, {
     rss: formatMB(usage.rss),
     heapUsed: formatMB(usage.heapUsed),
     heapTotal: formatMB(usage.heapTotal),
     external: formatMB(usage.external),
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 };
-
-// Performance metrics tracking
-class PerformanceTracker {
-  private startTime: number;
-  private milestones: Map<string, number> = new Map();
-
-  constructor() {
-    this.startTime = Date.now();
-  }
-
-  mark(milestone: string) {
-    this.milestones.set(milestone, Date.now() - this.startTime);
-    console.log(`Performance: ${milestone} took ${this.milestones.get(milestone)}ms`);
-  }
-
-  getMetrics() {
-    return Object.fromEntries(this.milestones);
-  }
-}
 
 // Optimized tool configurations - pre-created to avoid recreation per session
 const createToolConfigurations = () => ({
@@ -115,213 +97,31 @@ const createToolConfigurations = () => ({
     description: accept_dental_booking.description,
     parameters: accept_dental_booking.parameters,
     execute: accept_dental_booking.execute,
-  })
+  }),
+  accept_spa_booking: llm.tool({
+    description: accept_spa_booking.description,
+    parameters: accept_spa_booking.parameters,
+    execute: accept_spa_booking.execute,
+  }),
 });
 
 // Singleton tool configurations
 const TOOL_CONFIGS = createToolConfigurations();
 
-// Enhanced resource cleanup manager
-class ResourceManager {
-  private resources: Array<() => Promise<void> | void> = [];
-  private isCleaningUp = false;
-
-  register(cleanupFn: () => Promise<void> | void) {
-    this.resources.push(cleanupFn);
-  }
-
-  async cleanup(reason: string = 'unknown') {
-    if (this.isCleaningUp) {
-      console.log('Cleanup already in progress, skipping...');
-      return;
-    }
-
-    this.isCleaningUp = true;
-    console.log(`Starting resource cleanup: ${reason}`);
-    
-    const cleanupPromises = this.resources.map(async (cleanupFn, index) => {
-      try {
-        await cleanupFn();
-      } catch (error) {
-        console.warn(`Cleanup function ${index} failed:`, error);
-      }
-    });
-
-    await Promise.allSettled(cleanupPromises);
-    
-    // Force garbage collection if available
-    if (global.gc) {
-      global.gc();
-      logMemoryUsage('after GC');
-    }
-
-    console.log('Resource cleanup completed');
-    this.isCleaningUp = false;
-  }
-
-  isActive() {
-    return !this.isCleaningUp;
-  }
-}
-
-// Enhanced session manager with improved error handling
-class SessionManager {
-  private session: voice.AgentSession | null = null;
-  private tts: any = null;
-  private isSessionStarted = false;
-  private resourceManager = new ResourceManager();
-
-  async createSession(vad: silero.VAD, agent: voice.Agent): Promise<voice.AgentSession> {
-    // Create TTS with improved error handling
-    this.tts = new elevenlabs.TTS({
-      voice: { id: "2vbhUP8zyKg4dEZaTWGn", name: "", category: "" }
-    });
-
-    // Register TTS cleanup
-    this.resourceManager.register(async () => {
-      if (this.tts) {
-        try {
-          if (typeof this.tts.removeAllListeners === 'function') {
-            this.tts.removeAllListeners();
-          }
-          console.log('TTS cleaned up');
-        } catch (error) {
-          console.warn('Error cleaning up TTS:', error);
-        }
-        this.tts = null;
-      }
-    });
-
-    // Create session with enhanced configuration
-    this.session = new voice.AgentSession({
-      vad,
-      stt: new deepgram.STT({
-        // Enhanced STT configuration based on latest improvements
-        model: 'nova-3',
-        language: 'en-US',
-        smartFormat: true,
-        punctuate: true,
-      }),
-      tts: this.tts,
-      llm: new openai.LLM({ 
-        model: 'gpt-4o-mini', // Updated to latest stable model
-        temperature: 0.7,
-      }),
-    });
-
-    // Register session cleanup
-    this.resourceManager.register(async () => {
-      if (this.session) {
-        try {
-          this.session.removeAllListeners();
-          console.log('Session listeners cleaned up');
-        } catch (error) {
-          console.warn('Error cleaning up session:', error);
-        }
-        this.session = null;
-      }
-    });
-
-    // Set up enhanced error handling
-    this.session.on(voice.AgentSessionEventTypes.Close, () => {
-      console.log('Session closed event received');
-      this.resourceManager.cleanup('session close');
-    });
-
-    this.session.on(voice.AgentSessionEventTypes.Error, (error: any) => {
-      console.error('Session error:', error);
-      this.resourceManager.cleanup('session error');
-    });
-
-    return this.session;
-  }
-
-  async startSession(ctx: JobContext, agent: voice.Agent): Promise<void> {
-    if (this.isSessionStarted || !this.session) {
-      console.log('Session already started or not initialized');
-      return;
-    }
-
-    try {
-      await this.session.start({
-        room: ctx.room,
-        agent,
-        inputOptions: {
-          // noiseCancellation: BackgroundVoiceCancellation(),
-        },
-      });
-      
-      this.isSessionStarted = true;
-      console.log('Agent session started successfully');
-    } catch (error: any) {
-      // Enhanced error handling for specific stream conflicts
-      if (error.message?.includes('Stream source already set')) {
-        console.log('Stream source conflict detected, implementing recovery strategy...');
-        
-        // Wait for conflict to resolve
-        await new Promise(resolve => setTimeout(resolve, SESSION_CONFIG.SESSION_RETRY_DELAY_MS));
-        
-        // Reset session state and retry
-        this.isSessionStarted = false;
-        throw new Error('SESSION_RETRY_NEEDED');
-      }
-      
-      throw error;
-    }
-  }
-
-  async generateGreeting(): Promise<void> {
-    if (!this.session || !this.isSessionStarted) {
-      console.error('Session not available for greeting');
-      return;
-    }
-
-    try {
-      const handle = this.session.generateReply({
-        instructions: 'Introduce yourself. Greet the user warmly, and offer your assistance with questions about services, appointments, or directions.'
-      });
-
-      // Wait for greeting with timeout
-      const greetingPromise = handle.waitForPlayout();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Greeting timeout')), SESSION_CONFIG.GREETING_TIMEOUT_MS)
-      );
-
-      await Promise.race([greetingPromise, timeoutPromise]);
-      console.log('Greeting delivered successfully');
-    } catch (error) {
-      console.error('Error during greeting:', error);
-      // Don't throw - continue execution even if greeting fails
-    }
-  }
-
-  async cleanup(reason: string) {
-    await this.resourceManager.cleanup(reason);
-  }
-
-  getSession() {
-    return this.session;
-  }
-
-  isActive() {
-    return this.resourceManager.isActive();
-  }
-}
-
 export default defineAgent({
   prewarm: async (proc: JobProcess) => {
     const perf = new PerformanceTracker();
-    
+
     try {
       logMemoryUsage('before VAD preload');
-      
+
       // Pre-load VAD model with enhanced error handling
       proc.userData.vad = await silero.VAD.load();
       perf.mark('VAD model loaded');
       console.log('VAD model pre-loaded successfully');
-      
+
       logMemoryUsage('after VAD preload');
-      
+
       // Register VAD cleanup
       proc.userData.cleanup = () => {
         try {
@@ -335,7 +135,6 @@ export default defineAgent({
       };
 
       perf.mark('Prewarm completed');
-      
     } catch (error) {
       console.error('Failed to pre-load VAD model:', error);
       throw error;
@@ -344,7 +143,36 @@ export default defineAgent({
 
   entry: async (ctx: JobContext) => {
     const perf = new PerformanceTracker();
-    const sessionManager = new SessionManager();
+    
+    // Create all dependencies for SessionManager
+    const resourceManager = new ResourceManager();
+
+    // Create TTS instance
+    const tts = new elevenlabs.TTS({
+      voice: { id: '2vbhUP8zyKg4dEZaTWGn', name: '', category: '' },
+    });
+
+    // Create STT instance
+    const stt = new deepgram.STT({
+      model: 'nova-3',
+      language: 'en-US',
+      smartFormat: true,
+      punctuate: true,
+    });
+
+    // Create LLM instance
+    const llm = new openai.LLM({
+      model: 'gpt-4o-mini',
+      temperature: 0.7,
+    });
+
+    // Pass all dependencies to SessionManager
+    const sessionManager = new SessionManager({
+      resourceManager,
+      tts, // TTS implementation
+      stt, // STT implementation
+      llm, // LLM implementation
+    });
     let sessionTimeoutId: NodeJS.Timeout | null = null;
     let memoryLogIntervalId: NodeJS.Timeout | null = null;
 
@@ -377,12 +205,12 @@ export default defineAgent({
 
       // Get pre-loaded VAD model
       const vad = ctx.proc.userData.vad! as silero.VAD;
-      
+
       // Generate today's date for context
-      const today = new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
+      const today = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
       });
       console.log('Session date:', today);
 
@@ -411,7 +239,9 @@ export default defineAgent({
             throw error;
           }
           console.log(`Session creation attempt ${retryCount} failed, retrying...`);
-          await new Promise(resolve => setTimeout(resolve, SESSION_CONFIG.SESSION_RETRY_DELAY_MS));
+          await new Promise((resolve) =>
+            setTimeout(resolve, SESSION_CONFIG.SESSION_RETRY_DELAY_MS),
+          );
         }
       }
 
@@ -426,7 +256,7 @@ export default defineAgent({
       }
 
       // Brief delay to ensure room is fully initialized
-      await new Promise(resolve => setTimeout(resolve, SESSION_CONFIG.ROOM_INIT_DELAY_MS));
+      await new Promise((resolve) => setTimeout(resolve, SESSION_CONFIG.ROOM_INIT_DELAY_MS));
 
       // Start session with retry logic
       retryCount = 0;
@@ -459,22 +289,23 @@ export default defineAgent({
 
       // Wait for participant with timeout
       console.log('Waiting for participant to join...');
-      
+
       try {
         const participantPromise = ctx.waitForParticipant();
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Participant join timeout')), 
-          SESSION_CONFIG.PARTICIPANT_JOIN_TIMEOUT_MS)
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Participant join timeout')),
+            SESSION_CONFIG.PARTICIPANT_JOIN_TIMEOUT_MS,
+          ),
         );
-        
-        const participant = await Promise.race([participantPromise, timeoutPromise]) as any;
+
+        const participant = (await Promise.race([participantPromise, timeoutPromise])) as any;
         console.log(`Participant joined: ${participant.identity}`);
         perf.mark('Participant joined');
 
         // Generate and deliver greeting
         await sessionManager.generateGreeting();
         perf.mark('Greeting completed');
-
       } catch (participantError) {
         console.error('Error with participant handling:', participantError);
         // Continue without greeting if participant operations fail
@@ -497,13 +328,12 @@ export default defineAgent({
       const connectionMonitorId = setInterval(monitorConnection, 10000); // Every 10 seconds
 
       // Register connection monitor cleanup
-      sessionManager['resourceManager'].register(() => {
+      resourceManager.register(() => {
         clearInterval(connectionMonitorId);
       });
-
     } catch (error) {
       console.error('Error in agent entry:', error);
-      
+
       // Comprehensive cleanup on error
       await sessionManager.cleanup('entry error');
       if (sessionTimeoutId) clearTimeout(sessionTimeoutId);
@@ -533,7 +363,9 @@ process.on('SIGINT', workerCleanup);
 process.on('SIGTERM', workerCleanup);
 
 // Start worker with enhanced configuration
-cli.runApp(new WorkerOptions({
-  agent: fileURLToPath(import.meta.url),
-  agentName: 'jane'
-}));
+cli.runApp(
+  new WorkerOptions({
+    agent: fileURLToPath(import.meta.url),
+    agentName: 'jane',
+  }),
+);

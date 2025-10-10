@@ -17,6 +17,7 @@ dotenv.config({ path: envPath });
 export const CALENDAR_SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/spreadsheets', // Added for Google Sheets booking records
 ];
 
 function getEnv(name: string, optional = false): string | undefined {

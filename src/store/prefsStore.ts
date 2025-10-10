@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
+import { getDataDir, ensureDataFile } from '../utils/dataDir.js';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = getDataDir();
 const PREFS_FILE = path.join(DATA_DIR, 'preferences.json');
 
 export type WorkingHours = {
@@ -23,8 +24,7 @@ interface FileShape {
 }
 
 const ensureFile = () => {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  if (!fs.existsSync(PREFS_FILE)) fs.writeFileSync(PREFS_FILE, JSON.stringify({ prefs: [] }, null, 2));
+  ensureDataFile(PREFS_FILE, JSON.stringify({ prefs: [] }, null, 2));
 };
 
 const readAll = (): FileShape => {
