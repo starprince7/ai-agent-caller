@@ -22,6 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { PerformanceTracker, ResourceManager, SessionManager } from './core/managers/index.js';
 import { hiltonDentalPrompt } from './system-prompts/hilton-dental.js';
 import { dermaVisualsSpaPrompt } from './system-prompts/spa.js';
+import { preciousPrompt } from './system-prompts/precious.js';
 import {
   cancel_event,
   create_event,
@@ -32,34 +33,16 @@ import {
   set_working_hours,
 } from './tools/calendarAgentTools.js';
 import { accept_dental_booking, accept_spa_booking } from './tools/bookingTools.js';
+import { send_email } from './tools/emailTool.js';
+import { SESSION_CONFIG } from './config/session.js';
+import { logMemoryUsage } from './utils/memory-info.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
 dotenv.config({ path: envPath });
 
-// Enhanced configuration constants - based on latest agents framework
-const SESSION_CONFIG = {
-  TIMEOUT_MS: 30 * 60 * 1000, // 30 minutes
-  MEMORY_LOG_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
-  PARTICIPANT_JOIN_TIMEOUT_MS: 30000, // 30 seconds
-  GREETING_TIMEOUT_MS: 10000, // 10 seconds
-  SESSION_RETRY_DELAY_MS: 500, // 500ms delay between retries
-  ROOM_INIT_DELAY_MS: 100, // 100ms delay after room connection
-} as const;
 
 // Memory and performance monitoring utilities
-const logMemoryUsage = (context: string = '') => {
-  const usage = process.memoryUsage();
-  const formatMB = (bytes: number) => Math.round(bytes / 1024 / 1024) + 'MB';
-
-  console.log(`Memory usage ${context}:`, {
-    rss: formatMB(usage.rss),
-    heapUsed: formatMB(usage.heapUsed),
-    heapTotal: formatMB(usage.heapTotal),
-    external: formatMB(usage.external),
-    timestamp: new Date().toISOString(),
-  });
-};
 
 // Optimized tool configurations - pre-created to avoid recreation per session
 const createToolConfigurations = () => ({
@@ -102,6 +85,11 @@ const createToolConfigurations = () => ({
     description: accept_spa_booking.description,
     parameters: accept_spa_booking.parameters,
     execute: accept_spa_booking.execute,
+  }),
+  send_email: llm.tool({
+    description: send_email.description,
+    parameters: send_email.parameters,
+    execute: send_email.execute,
   }),
 });
 
@@ -151,6 +139,7 @@ export default defineAgent({
     const tts = new elevenlabs.TTS({
       voice: { id: '2vbhUP8zyKg4dEZaTWGn', name: '', category: '' },
     });
+    // const tts = new openai.TTS({voice: 'nova'})
 
     // Create STT instance
     const stt = new deepgram.STT({
@@ -217,7 +206,7 @@ export default defineAgent({
       // Create agent with optimized configuration
       const agent = new voice.Agent({
         vad: vad,
-        instructions: dermaVisualsSpaPrompt(today),
+        instructions: preciousPrompt(today),
         allowInterruptions: true,
         tools: TOOL_CONFIGS, // Use pre-configured tools
       });

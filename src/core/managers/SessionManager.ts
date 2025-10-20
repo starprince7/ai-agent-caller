@@ -150,7 +150,7 @@ export class SessionManager {
 
     try {
       const handle = this.session.generateReply({
-        instructions: 'Introduce yourself. Greet the user warmly, and offer your assistance with questions about services, appointments, or directions.'
+        instructions: 'Introduce yourself. Greet the user warmly, and offer your assistance.'
       });
 
       // Wait for greeting with timeout
