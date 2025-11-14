@@ -20,9 +20,15 @@ import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PerformanceTracker, ResourceManager, SessionManager } from './core/managers/index.js';
+
+// System Prompt
+import { rebeccaPrompt } from './system-prompts/rebecca.js';
+import { zoomDentalPrompt } from './system-prompts/zoom-dental.js';
 import { hiltonDentalPrompt } from './system-prompts/hilton-dental.js';
 import { dermaVisualsSpaPrompt } from './system-prompts/spa.js';
 import { preciousPrompt } from './system-prompts/precious.js';
+
+// Tools
 import {
   cancel_event,
   create_event,
@@ -34,6 +40,8 @@ import {
 } from './tools/calendarAgentTools.js';
 import { accept_dental_booking, accept_spa_booking } from './tools/bookingTools.js';
 import { send_email } from './tools/emailTool.js';
+import { send_booking_email } from './tools/bookingEmail.js';
+
 import { SESSION_CONFIG } from './config/session.js';
 import { logMemoryUsage } from './utils/memory-info.js';
 
@@ -131,7 +139,7 @@ export default defineAgent({
 
   entry: async (ctx: JobContext) => {
     const perf = new PerformanceTracker();
-    
+
     // Create all dependencies for SessionManager
     const resourceManager = new ResourceManager();
 
@@ -206,7 +214,7 @@ export default defineAgent({
       // Create agent with optimized configuration
       const agent = new voice.Agent({
         vad: vad,
-        instructions: preciousPrompt(today),
+        instructions: zoomDentalPrompt(today),
         allowInterruptions: true,
         tools: TOOL_CONFIGS, // Use pre-configured tools
       });
@@ -257,7 +265,9 @@ export default defineAgent({
         } catch (error: any) {
           if (error.message === 'SESSION_RETRY_NEEDED' && retryCount < maxRetries) {
             retryCount++;
-            console.log(`Session start attempt ${retryCount} failed, retrying...`);
+            console.log(`Session start attempt ${retryCount} failed due to stream conflict, recreating session and retrying...`);
+            // Recreate session to avoid partially-initialized session with duplicate stream wiring
+            await sessionManager.createSession(vad, agent);
             continue;
           }
           throw error;

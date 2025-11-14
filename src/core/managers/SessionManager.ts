@@ -133,8 +133,12 @@ export class SessionManager {
         // Wait for conflict to resolve
         await new Promise(resolve => setTimeout(resolve, SESSION_CONFIG.SESSION_RETRY_DELAY_MS));
         
-        // Reset session state and retry
+        // Reset session state and dispose partially initialized session to avoid duplicate wiring
         this.isSessionStarted = false;
+        try {
+          this.session?.removeAllListeners();
+        } catch {}
+        this.session = null;
         throw new Error('SESSION_RETRY_NEEDED');
       }
       

@@ -1,3 +1,4 @@
+import { sendEmail } from '../utils/send-email.js';
 import { writeHiltonDentalBooking, writeDermaVixualsBooking } from './sheetsTool.js';
 
 const DEMO_USER_ID = process.env.DEMO_USER_ID ?? 'demo-user';
@@ -57,7 +58,14 @@ export const accept_dental_booking = {
         clinicLocation: args.clinicLocation,
         patientType: args.patientType || 'new'
       });
-      
+
+      await sendEmail({
+        to: args.email,
+        subject: 'Appointment Booking Confirmation',
+        greeting: 'Dear ' + args.name,
+        bodyHtml: 'Thank you for booking your appointment with Zoom Exclusive Dental. We have received your booking request and will get back to you as soon as possible.',
+      })
+
       return result;
     } catch (error: any) {
       console.error('Error booking dental appointment:', error);
@@ -110,7 +118,7 @@ export const accept_spa_booking = {
         date: args.date,
         preferredTime: args.preferredTime
       });
-      
+
       return result;
     } catch (error: any) {
       console.error('Error booking spa appointment:', error);
