@@ -3,6 +3,8 @@
 // SPDX-License-Identifier: Apache-2.0
 import { voice, type JobContext } from '@livekit/agents';
 import { ResourceManager } from './ResourceManager.js';
+import { GreetingService, type GreetingConfig } from '../services/GreetingService.js';
+import { TTSService } from '../services/TTSService.js';
 
 // Define interfaces for external dependencies - include only what's needed
 export interface TTS {
@@ -27,7 +29,6 @@ const SESSION_CONFIG = {
   TIMEOUT_MS: 30 * 60 * 1000, // 30 minutes
   MEMORY_LOG_INTERVAL_MS: 5 * 60 * 1000, // 5 minutes
   PARTICIPANT_JOIN_TIMEOUT_MS: 30000, // 30 seconds
-  GREETING_TIMEOUT_MS: 10000, // 10 seconds
   SESSION_RETRY_DELAY_MS: 500, // 500ms delay between retries
   ROOM_INIT_DELAY_MS: 100, // 100ms delay after room connection
 } as const;
@@ -35,49 +36,61 @@ const SESSION_CONFIG = {
 // Enhanced session manager with improved error handling
 export class SessionManager {
   private session: voice.AgentSession | null = null;
-  private tts: TTS;
+  private readonly ttsService: TTSService;
   private stt: STT;
   private llm: LLM;
   private isSessionStarted = false;
-  private resourceManager: ResourceManager;
+  private readonly resourceManager: ResourceManager;
+  private readonly greetingService: GreetingService;
 
   constructor({
     resourceManager,
-    tts,
+    ttsService,
     stt,
-    llm
+    llm,
+    greetingConfig
   }: {
     resourceManager: ResourceManager;
-    tts: TTS;
+    ttsService: TTSService;
     stt: STT;
     llm: LLM;
+    greetingConfig?: Partial<GreetingConfig>;
   }) {
     this.resourceManager = resourceManager;
-    this.tts = tts;
+    this.ttsService = ttsService;
     this.stt = stt;
     this.llm = llm;
+    
+    // Wire up TTS failure/success callbacks to the GreetingService
+    const greetingConfigWithCallbacks: Partial<GreetingConfig> = {
+      ...greetingConfig,
+      onTTSFailure: () => {
+        console.log('TTS failure detected in greeting, reporting to TTSService');
+        this.ttsService.reportFailure(new Error('Greeting TTS failure'));
+      },
+      onTTSSuccess: () => {
+        this.ttsService.reportSuccess();
+      },
+    };
+    
+    this.greetingService = new GreetingService(greetingConfigWithCallbacks);
   }
 
   async createSession(vad: any, agent: voice.Agent): Promise<voice.AgentSession> {
     // Register TTS cleanup
     this.resourceManager.register(async () => {
-      if (this.tts) {
-        try {
-          if (typeof this.tts.removeAllListeners === 'function') {
-            this.tts.removeAllListeners();
-          }
-          console.log('TTS cleaned up');
-        } catch (error) {
-          console.warn('Error cleaning up TTS:', error);
-        }
-      }
+      this.ttsService.cleanup();
     });
+
+    // Get the active TTS (primary or fallback)
+    const activeTTS = this.ttsService.getTTS();
+    console.log(`Creating session with TTS provider: ${this.ttsService.getCurrentProvider()}`);
 
     // Create session with enhanced configuration
     this.session = new voice.AgentSession({
       vad, // Use the provided VAD instance
       stt: this.stt as any, // Cast to any to bypass type checking
-      tts: this.tts as any, // Cast to any to bypass type checking
+      tts: activeTTS as any, // Use active TTS (may be fallback)
       llm: this.llm as any, // Cast to any to bypass type checking
     });
 
@@ -146,29 +159,31 @@ export class SessionManager {
     }
   }
 
-  async generateGreeting(): Promise<void> {
+  async generateGreeting(customInstructions?: string): Promise<{ success: boolean; usedFallback: boolean }> {
     if (!this.session || !this.isSessionStarted) {
       console.error('Session not available for greeting');
-      return;
+      return { success: false, usedFallback: false };
     }
 
-    try {
-      const handle = this.session.generateReply({
-        instructions: 'Introduce yourself. Greet the user warmly, and offer your assistance.'
-      });
+    // Use the GreetingService with guard pattern and fallback strategy
+    const result = await this.greetingService.deliverGreeting(
+      this.session,
+      customInstructions
+    );
 
-      // Wait for greeting with timeout
-      const greetingPromise = handle.waitForPlayout();
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Greeting timeout')), SESSION_CONFIG.GREETING_TIMEOUT_MS)
-      );
-
-      await Promise.race([greetingPromise, timeoutPromise]);
-      console.log('Greeting delivered successfully');
-    } catch (error) {
-      console.error('Error during greeting:', error);
-      // Don't throw - continue execution even if greeting fails
+    if (!result.success) {
+      console.warn('Greeting could not be delivered, but session continues');
     }
+
+    return { success: result.success, usedFallback: result.usedFallback };
+  }
+
+  isGreetingCompleted(): boolean {
+    return this.greetingService.isCompleted();
+  }
+
+  resetGreeting(): void {
+    this.greetingService.reset();
   }
 
   async cleanup(reason: string) {

@@ -7,102 +7,32 @@ import {
   WorkerOptions,
   cli,
   defineAgent,
-  llm,
   voice,
 } from '@livekit/agents';
-import * as deepgram from '@livekit/agents-plugin-deepgram';
-import * as elevenlabs from '@livekit/agents-plugin-elevenlabs';
-import * as livekit from '@livekit/agents-plugin-livekit';
-import * as openai from '@livekit/agents-plugin-openai';
 import * as silero from '@livekit/agents-plugin-silero';
-import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PerformanceTracker, ResourceManager, SessionManager } from './core/managers/index.js';
 
-// System Prompt
-import { rebeccaPrompt } from './system-prompts/rebecca.js';
-import { zoomDentalPrompt } from './system-prompts/zoom-dental.js';
-import { hiltonDentalPrompt } from './system-prompts/hilton-dental.js';
-import { dermaVisualsSpaPrompt } from './system-prompts/spa.js';
-import { preciousPrompt } from './system-prompts/precious.js';
-
-// Tools
+// Core modules
 import {
-  cancel_event,
-  create_event,
-  find_free_slots,
-  get_calendars,
-  get_primary_calendar,
-  reschedule_event,
-  set_working_hours,
-} from './tools/calendarAgentTools.js';
-import { accept_dental_booking, accept_spa_booking } from './tools/bookingTools.js';
-import { send_email } from './tools/emailTool.js';
-import { send_booking_email } from './tools/bookingEmail.js';
+  PerformanceTracker,
+  ResourceManager,
+  SessionManager,
+  AgentFactory,
+} from './core/index.js';
 
-import { SESSION_CONFIG } from './config/session.js';
+// System Prompts
+import { zoomDentalPrompt } from './system-prompts/zoom-dental.js';
+
+// Tools and Configuration
+import { TOOL_CONFIGS } from './tools/index.js';
+import { SESSION_CONFIG, GREETING_CONFIG } from './config/session.js';
 import { logMemoryUsage } from './utils/memory-info.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.join(__dirname, '../.env.local');
 dotenv.config({ path: envPath });
-
-
-// Memory and performance monitoring utilities
-
-// Optimized tool configurations - pre-created to avoid recreation per session
-const createToolConfigurations = () => ({
-  get_calendars: llm.tool({
-    description: get_calendars.description,
-    parameters: get_calendars.parameters,
-    execute: get_calendars.execute,
-  }),
-  get_primary_calendar: llm.tool({
-    description: get_primary_calendar.description,
-    parameters: get_primary_calendar.parameters,
-    execute: get_primary_calendar.execute,
-  }),
-  create_event: llm.tool({
-    description: create_event.description,
-    parameters: create_event.parameters,
-    execute: create_event.execute,
-  }),
-  cancel_event: llm.tool({
-    description: cancel_event.description,
-    parameters: cancel_event.parameters,
-    execute: cancel_event.execute,
-  }),
-  reschedule_event: llm.tool({
-    description: reschedule_event.description,
-    parameters: reschedule_event.parameters,
-    execute: reschedule_event.execute,
-  }),
-  find_free_slots: llm.tool({
-    description: find_free_slots.description,
-    parameters: find_free_slots.parameters,
-    execute: find_free_slots.execute,
-  }),
-  accept_dental_booking: llm.tool({
-    description: accept_dental_booking.description,
-    parameters: accept_dental_booking.parameters,
-    execute: accept_dental_booking.execute,
-  }),
-  accept_spa_booking: llm.tool({
-    description: accept_spa_booking.description,
-    parameters: accept_spa_booking.parameters,
-    execute: accept_spa_booking.execute,
-  }),
-  send_email: llm.tool({
-    description: send_email.description,
-    parameters: send_email.parameters,
-    execute: send_email.execute,
-  }),
-});
-
-// Singleton tool configurations
-const TOOL_CONFIGS = createToolConfigurations();
 
 export default defineAgent({
   prewarm: async (proc: JobProcess) => {
@@ -140,35 +70,26 @@ export default defineAgent({
   entry: async (ctx: JobContext) => {
     const perf = new PerformanceTracker();
 
-    // Create all dependencies for SessionManager
+    // Create all dependencies using AgentFactory
     const resourceManager = new ResourceManager();
+    const agentFactory = new AgentFactory();
+    const { stt, llm } = agentFactory.createDependencies();
+    
+    // Create TTSService with proper configuration
+    const ttsService = agentFactory.createTTSService();
 
-    // Create TTS instance
-    const tts = new elevenlabs.TTS({
-      voice: { id: '2vbhUP8zyKg4dEZaTWGn', name: '', category: '' },
-    });
-    // const tts = new openai.TTS({voice: 'nova'})
-
-    // Create STT instance
-    const stt = new deepgram.STT({
-      model: 'nova-3',
-      language: 'en-US',
-      smartFormat: true,
-      punctuate: true,
-    });
-
-    // Create LLM instance
-    const llm = new openai.LLM({
-      model: 'gpt-4o-mini',
-      temperature: 0.7,
-    });
-
-    // Pass all dependencies to SessionManager
+    // Pass all dependencies to SessionManager with greeting configuration
     const sessionManager = new SessionManager({
       resourceManager,
-      tts, // TTS implementation
-      stt, // STT implementation
-      llm, // LLM implementation
+      ttsService,
+      stt,
+      llm,
+      greetingConfig: {
+        timeoutMs: GREETING_CONFIG.TIMEOUT_MS,
+        maxRetries: GREETING_CONFIG.MAX_RETRIES,
+        retryDelayMs: GREETING_CONFIG.RETRY_DELAY_MS,
+        fallbackEnabled: GREETING_CONFIG.FALLBACK_ENABLED,
+      },
     });
     let sessionTimeoutId: NodeJS.Timeout | null = null;
     let memoryLogIntervalId: NodeJS.Timeout | null = null;
@@ -324,7 +245,7 @@ export default defineAgent({
         }
       };
 
-      const connectionMonitorId = setInterval(monitorConnection, 10000); // Every 10 seconds
+      const connectionMonitorId = setInterval(monitorConnection, SESSION_CONFIG.CONNECTION_MONITOR_INTERVAL_MS);
 
       // Register connection monitor cleanup
       resourceManager.register(() => {

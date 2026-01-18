@@ -1,4 +1,4 @@
-import { initializeHiltonDentalSheet, initializeDermaVixualsSheet } from '../tools/sheetsTool.js';
+import { initializeHiltonDentalSheet, initializeDermaVixualsSheet, initializeZoomDentalSheet } from '../tools/sheetsTool.js';
 import path from 'node:path';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'node:url';
@@ -14,8 +14,9 @@ async function main() {
 
   const hiltonSheetId = process.env.HILTON_DENTAL_SHEET_ID;
   const dermaSheetId = process.env.DERMAVIXUALS_SHEET_ID;
+  const zoomDentalSheetId = process.env.ZOOM_DENTAL_SHEET_ID;
 
-  if (!hiltonSheetId && !dermaSheetId) {
+  if (!hiltonSheetId && !dermaSheetId && !zoomDentalSheetId) {
     console.error('Error: No sheet IDs found in environment variables.');
     console.log('\nPlease set the following in your .env.local file:');
     console.log('- HILTON_DENTAL_SHEET_ID=your_hilton_dental_spreadsheet_id');
@@ -44,6 +45,15 @@ async function main() {
       console.log(`  URL: https://docs.google.com/spreadsheets/d/${dermaSheetId}/edit\n`);
     } else {
       console.log('⚠ Skipping DermaVixuals sheet (DERMAVIXUALS_SHEET_ID not set)\n');
+    }
+
+    if (zoomDentalSheetId) {
+      console.log('Initializing Zoom Dental sheet...');
+      await initializeZoomDentalSheet(DEMO_USER_ID, zoomDentalSheetId);
+      console.log('✓ Zoom Dental sheet initialized successfully');
+      console.log(`  URL: https://docs.google.com/spreadsheets/d/${zoomDentalSheetId}/edit\n`);
+    } else {
+      console.log('⚠ Skipping Zoom Dental sheet (ZOOM_DENTAL_SHEET_ID not set)\n');
     }
 
     console.log('All sheets initialized successfully!');

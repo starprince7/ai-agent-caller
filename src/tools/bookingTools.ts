@@ -1,5 +1,5 @@
 import { sendEmail } from '../utils/send-email.js';
-import { writeHiltonDentalBooking, writeDermaVixualsBooking } from './sheetsTool.js';
+import { writeHiltonDentalBooking, writeDermaVixualsBooking, writeZoomDentalBooking } from './sheetsTool.js';
 
 const DEMO_USER_ID = process.env.DEMO_USER_ID ?? 'demo-user';
 
@@ -48,7 +48,7 @@ export const accept_dental_booking = {
   },
   execute: async (args: any) => {
     try {
-      const result = await writeHiltonDentalBooking(DEMO_USER_ID, {
+      const result = await writeZoomDentalBooking(DEMO_USER_ID, {
         name: args.name,
         phone: args.phone,
         email: args.email,

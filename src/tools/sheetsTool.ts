@@ -61,7 +61,7 @@ async function getAuthorizedClient(userId: string): Promise<OAuth2Client> {
   return oauth2Client;
 }
 
-export interface HiltonDentalBooking {
+export interface DentalBookingParams {
   name: string;
   phone: string;
   email: string;
@@ -82,11 +82,63 @@ export interface DermaVixualsBooking {
 }
 
 /**
+ * Write Zoom Dental appointment booking to Google Sheets
+ */
+export async function writeZoomDentalBooking(
+  userId: string,
+  booking: DentalBookingParams
+): Promise<string> {
+  try {
+    const auth = await getAuthorizedClient(userId);
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    const spreadsheetId = getEnv('ZOOM_DENTAL_SHEET_ID');
+    if (!spreadsheetId) {
+      throw new Error('ZOOM_DENTAL_SHEET_ID environment variable is not set');
+    }
+
+    // Prepare the row data
+    const timestamp = new Date().toISOString();
+    const values = [
+      [
+        timestamp,
+        'Zoom Dental',
+        booking.name,
+        booking.phone,
+        booking.email,
+        booking.procedures,
+        booking.date,
+        booking.preferredTime,
+        booking.clinicLocation,
+        booking.patientType || 'new'
+      ]
+    ];
+
+    // Append the data to the sheet
+    const range = 'Sheet1!A:J'; // Adjust sheet name if needed
+    const response = await sheets.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: {
+        values,
+      },
+    });
+
+    console.log(`Zoom Dental booking written to sheet: ${response.data.updates?.updatedRows} row(s) added`);
+    return `Appointment successfully recorded in Zoom Dental booking system for ${booking.name} on ${booking.date} at ${booking.preferredTime}.`;
+  } catch (error: any) {
+    console.error('Error writing Zoom Dental booking to Google Sheets:', error);
+    throw new Error(`Failed to record booking: ${error.message}`);
+  }
+}
+
+/**
  * Write Hilton Dental appointment booking to Google Sheets
  */
 export async function writeHiltonDentalBooking(
   userId: string,
-  booking: HiltonDentalBooking
+  booking: DentalBookingParams
 ): Promise<string> {
   try {
     const auth = await getAuthorizedClient(userId);
@@ -181,6 +233,38 @@ export async function writeDermaVixualsBooking(
     console.error('Error writing DermaVixuals booking to Google Sheets:', error);
     throw new Error(`Failed to record booking: ${error.message}`);
   }
+}
+
+/**
+ * Initialize sheet headers (run once per sheet)
+ */
+export async function initializeZoomDentalSheet(userId: string, spreadsheetId: string): Promise<void> {
+  const auth = await getAuthorizedClient(userId);
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  const headers = [
+    'Timestamp',
+    'Business',
+    'Name',
+    'Phone',
+    'Email',
+    'Service/Procedure',
+    'Date',
+    'Time',
+    'Location',
+    'Patient Type'
+  ];
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: 'Sheet1!A1:J1',
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [headers],
+    },
+  });
+
+  console.log('Zoom Dental sheet headers initialized');
 }
 
 /**

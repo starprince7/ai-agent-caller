@@ -1,0 +1,38 @@
+{
+  "timestamp": "2026-01-18T02:06:30.599Z",
+  "config": {
+    "text": "Hello, this is a test of the ElevenLabs TTS system.",
+    "elevenlabsVoiceId": "2vbhUP8zyKg4dEZaTWGn",
+    "elevenlabsVoiceName": "Stella - Warm, Natural & Conversational",
+    "models": [
+      "eleven_flash_v2_5",
+      "eleven_turbo_v2_5",
+      "eleven_multilingual_v2"
+    ]
+  },
+  "elevenlabs": [
+    {
+      "model": "eleven_flash_v2_5",
+      "success": false,
+      "error": "logger not initialized. did you forget to run initializeLogger()?",
+      "creationFailed": true
+    },
+    {
+      "model": "eleven_turbo_v2_5",
+      "success": false,
+      "error": "logger not initialized. did you forget to run initializeLogger()?",
+      "creationFailed": true
+    },
+    {
+      "model": "eleven_multilingual_v2",
+      "success": false,
+      "error": "logger not initialized. did you forget to run initializeLogger()?",
+      "creationFailed": true
+    }
+  ],
+  "openai": {
+    "success": false,
+    "error": "OpenAI API key is required, whether as an argument or as $OPENAI_API_KEY",
+    "provider": "OpenAI"
+  }
+}
